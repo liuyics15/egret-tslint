@@ -1,6 +1,7 @@
 {
     "rulesDirectory": ["./lib/rules"],
     "rules":{
-        "ts-egret":true
+        "ts-egret":true,
+        "no-invalid-this": true
     }
 }

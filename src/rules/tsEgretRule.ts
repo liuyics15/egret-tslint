@@ -1,7 +1,7 @@
 import * as ts from "typescript";
 import * as Lint from "tslint";
 
-const warnTips = {
+const C_WARN_TIP = {
     cls:"类名遵循【大驼峰】法，如 TextField",
     module:"模块名遵循【小写下划线】法，如 name_space",
     interface:"接口名遵循【I前缀】【大驼峰】法，如 IWatch",
@@ -14,6 +14,7 @@ const warnTips = {
     method_s:"类静态方法名遵循【大驼峰】法，如 CreateIns()",
     method:"类方法名遵循【小驼峰】法，如 toString()",
     property_s:"类静态变量名遵循【s前缀】【小写下划线】法，如 s_instance",
+    property_s_rd:"类静态只读变量遵循【大写下划线】法，如 FAIL_CODE",
     property_m:"类公共变量名遵循【m前缀】【小写下划线】法，如 m_id",
     property_p:"类私有变量名遵循【 前缀】【小写下划线】法，如 _name"
 };
@@ -30,7 +31,7 @@ export class Rule extends Lint.Rules.AbstractRule {
         typescriptOnly: true
     };
     //
-    static FAILURE_STRING = "格式有误";
+    static readonly FAILURE_STRING = "格式有误";
     //entry point
     apply(source:ts.SourceFile):Lint.RuleFailure[] {
         return this.applyWithWalker(new TsEgretRule(source,this.getOptions()));
@@ -45,7 +46,7 @@ class TsEgretRule extends Lint.RuleWalker {
     visitClassDeclaration(node:ts.ClassDeclaration):void {
         let cName = <string>node.name.escapedText;
         if(!assertBigCamel(cName)) {
-            this.throwFailure(node,warnTips.cls);
+            this.throwFailure(node,C_WARN_TIP.cls);
         }
         super.visitClassDeclaration(node);
     }
@@ -61,7 +62,7 @@ class TsEgretRule extends Lint.RuleWalker {
             mName = node.name.text;
         }
         if(!assertLitLine(mName)) {
-            this.throwFailure(node,warnTips.module);
+            this.throwFailure(node,C_WARN_TIP.module);
         }
         super.visitModuleDeclaration(node);
     }
@@ -72,7 +73,7 @@ class TsEgretRule extends Lint.RuleWalker {
     visitInterfaceDeclaration(node: ts.InterfaceDeclaration):void {
         let iName:string = <string> node.name.escapedText;
         if(!/^I[A-Z]/.test(iName)) {
-            this.throwFailure(node,warnTips.interface);
+            this.throwFailure(node,C_WARN_TIP.interface);
         }
         super.visitInterfaceDeclaration(node);
     }
@@ -83,7 +84,7 @@ class TsEgretRule extends Lint.RuleWalker {
     visitEnumDeclaration(node:ts.EnumDeclaration):void {
         let eName:string = <string> node.name.escapedText;
         if(!/^E[A-Z]/.test(eName)) {
-            this.throwFailure(node,warnTips.enum);
+            this.throwFailure(node,C_WARN_TIP.enum);
         }
         super.visitEnumDeclaration(node);
     }
@@ -92,10 +93,10 @@ class TsEgretRule extends Lint.RuleWalker {
      * 全局变量常量声明
      */
     visitVariableStatement(node: ts.VariableStatement):void {
-        let fullText = node.getText();
+        let fullText = node.getText().split("=")[0];
         //禁用var
         if(/var/.test(fullText)) {
-            this.throwFailure(node,warnTips.var);
+            this.throwFailure(node,C_WARN_TIP.var);
         }
         //常量
         else if(/const/.test(fullText)) {
@@ -105,7 +106,7 @@ class TsEgretRule extends Lint.RuleWalker {
                 node.declarationList.declarations.forEach(function (declaration:ts.VariableDeclaration) {
                     let name:string = <string>declaration.name["escapedText"];
                     if(/[a-z]/.test(name) || !/^C_/.test(name)) {
-                        thisArg.throwFailure(declaration,warnTips.const);
+                        thisArg.throwFailure(declaration.name,C_WARN_TIP.const);
                     }
                 });
             }
@@ -118,13 +119,13 @@ class TsEgretRule extends Lint.RuleWalker {
                 node.declarationList.declarations.forEach(function (declaration:ts.VariableDeclaration) {
                     let name:string = <string> declaration.name["escapedText"];
                     if(/[A-Z]/.test(name)) {
-                        thisArg.throwFailure(declaration,warnTips.let);
+                        thisArg.throwFailure(declaration.name,C_WARN_TIP.let);
                     }
                     else if(spaceID == 1 && !/^g_/.test(name)) {
-                        thisArg.throwFailure(declaration,warnTips.let_g);
+                        thisArg.throwFailure(declaration.name,C_WARN_TIP.let_g);
                     }
                     else if(spaceID == 2 && !/^p_/.test(name)) {
-                        thisArg.throwFailure(declaration,warnTips.let_p);
+                        thisArg.throwFailure(declaration.name,C_WARN_TIP.let_p);
                     }
                 });
             }
@@ -136,14 +137,14 @@ class TsEgretRule extends Lint.RuleWalker {
      * 方法判断static
      */
     visitMethodDeclaration(node:ts.MethodDeclaration):void {
-        let bPublic:boolean = true;
+        // let bPublic:boolean = true;
         let bStatic:boolean = false;
         if(node.modifiers) {
             node.modifiers.forEach(modifier => {
                 switch (modifier.kind) {
                     case ts.SyntaxKind.ProtectedKeyword:
                     case ts.SyntaxKind.PrivateKeyword: {
-                        bPublic = false;
+                        // bPublic = false;
                     } break;
                     case ts.SyntaxKind.StaticKeyword:{
                         bStatic = true;
@@ -154,11 +155,11 @@ class TsEgretRule extends Lint.RuleWalker {
         let mName:string = node.name["escapedText"];
         if(bStatic) {
             if(!assertBigCamel(mName)) {
-                this.throwFailure(node,warnTips.method_s);
+                this.throwFailure(node.name,C_WARN_TIP.method_s);
             }
         } else {
             if(!assertLitCamel(mName)) {
-                this.throwFailure(node,warnTips.method);
+                this.throwFailure(node.name,C_WARN_TIP.method);
             }
         }
         super.visitMethodDeclaration(node);
@@ -167,6 +168,7 @@ class TsEgretRule extends Lint.RuleWalker {
     visitPropertyDeclaration(node:ts.PropertyDeclaration):void {
         let bPublic:boolean = true;
         let bStatic:boolean = false;
+        let bReadOnly:boolean = false;
         if(node.modifiers) {
             node.modifiers.forEach(modifier => {
                 switch (modifier.kind) {
@@ -177,23 +179,32 @@ class TsEgretRule extends Lint.RuleWalker {
                     case ts.SyntaxKind.StaticKeyword:{
                         bStatic = true;
                     } break;
+                    case ts.SyntaxKind.ReadonlyKeyword:{
+                        bReadOnly = true;
+                    } break;
                 }
             });
         }
         let pName:string = node.name["escapedText"];
         if(bStatic) {
-            if(!/^s_/.test(pName) || /[A-Z]/.test(pName)) {
-                this.throwFailure(node,warnTips.property_s);
+            if(bReadOnly) {
+                if(/[a-z]/.test(pName)) {
+                    this.throwFailure(node.name,C_WARN_TIP.property_s_rd);
+                }
+            } else {
+                if(!/^s_/.test(pName) || /[A-Z]/.test(pName)) {
+                    this.throwFailure(node.name,C_WARN_TIP.property_s);
+                }
             }
         }
         else if(bPublic) {
             if(!/^m_/.test(pName) || /[A-Z]/.test(pName)) {
-                this.throwFailure(node,warnTips.property_m);
+                this.throwFailure(node.name,C_WARN_TIP.property_m);
             }
         }
         else {
             if(!/^_/.test(pName) || /[A-Z]/.test(pName)) {
-                this.throwFailure(node,warnTips.property_p);
+                this.throwFailure(node.name,C_WARN_TIP.property_p);
             }
         }
         super.visitPropertyDeclaration(node);
@@ -212,18 +223,18 @@ class TsEgretRule extends Lint.RuleWalker {
 function getVariableWorkspace(parentNode:ts.Node):number {
     //0-无效，1-根目录，2-命名空间内
     let spaceID:number = 0;
-    let judgeConst:boolean = false;
+    // let judgeConst:boolean = false;
     if(!parentNode) {
-        judgeConst = true;
+        // judgeConst = true;
         spaceID = 1;
     }
     else if(ts.isSourceFile(parentNode)) {
         spaceID = 1;
-        judgeConst = true;
+        // judgeConst = true;
     }
     else if(ts.isModuleBlock(parentNode)) {
         spaceID = 2;
-        judgeConst = true;
+        // judgeConst = true;
     }
     return spaceID;
 }
