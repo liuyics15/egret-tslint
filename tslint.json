@@ -1,0 +1,6 @@
+{
+    "rulesDirectory": ["./lib/rules"],
+    "rules":{
+        "ts-egret":true
+    }
+}
